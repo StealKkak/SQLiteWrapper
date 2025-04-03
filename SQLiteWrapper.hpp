@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <sqlite3.h>
+#include <algorithm>
 
 class SQLiteWrapper {
     public:
@@ -21,23 +22,30 @@ class SQLiteWrapper {
             }
         }
 
-        template <typename... Args>
-        void execute(const std::string& sql, Args... args) {
+        void execute(const std::string& sql, const std::vector<std::string>& params = {}) {
             sqlite3_stmt* stmt;
+
+            size_t questionMarkCount = std::count(sql.begin(), sql.end(), '?');
+
+            if (questionMarkCount != params.size()) {
+                throw std::runtime_error("Parameter count mismatch: expected " + 
+                                         std::to_string(questionMarkCount) + ", got " + 
+                                         std::to_string(params.size()));
+            }
         
             if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
                 std::cerr << "SQL Preparation Error: " << sqlite3_errmsg(db) << std::endl;
                 throw std::runtime_error("SQL Preparation Error");
             }
-        
-            int paramIndex = 1;
-            (void)std::initializer_list<int>{
-                ((sqlite3_bind_text(stmt, paramIndex++, args.c_str(), -1, SQLITE_STATIC) == SQLITE_OK) || 
-                 (std::cerr << "Parameter Binding Error: " << sqlite3_errmsg(db) << std::endl, 
-                  sqlite3_finalize(stmt), 
-                  throw std::runtime_error("Parameter Binding Error"), 0))
-                ...
-            };
+            
+            if (!params.empty())
+                for (size_t i = 0; i < params.size(); i++) {
+                    if (sqlite3_bind_text(stmt, i + 1, params[i].c_str(), -1, SQLITE_STATIC) != SQLITE_OK) {
+                        std::cerr << "Parameter Binding Error: " << sqlite3_errmsg(db) << std::endl;
+                        sqlite3_finalize(stmt);
+                        throw std::runtime_error("Parameter Binding Error");
+                    }
+                }
         
             queryResult.clear();
             int rc = sqlite3_step(stmt);
