@@ -21,7 +21,7 @@ class SQLiteWrapper {
             }
         }
 
-        void excute(const std::string& sql, const std::vector<std::string>& params) {
+        void execute(const std::string& sql, const std::vector<std::string>& params = {}) {
             sqlite3_stmt* stmt;
             
             if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
@@ -46,7 +46,7 @@ class SQLiteWrapper {
             sqlite3_finalize(stmt);
         }
 
-        void query(const std::string& sql, std::vector<std::string>& params) {
+        void query(const std::string& sql, const std::vector<std::string>& params={}) {
             sqlite3_stmt* stmt;
 
             if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
